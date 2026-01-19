@@ -74,7 +74,7 @@ const renderBoard = () => {
           draggedPiece = null;
           sourceSquare = null;
         });
-        pieceElement.addEventListener("click", () => {
+        pieceElement.addEventListener("pointerdown", () => {
           if (playerRole !== square.color) return;
 
           // Deselect old piece
@@ -102,7 +102,7 @@ const renderBoard = () => {
           handelMove(sourceSquare, targetSource);
         }
       });
-      squareElement.addEventListener("click", () => {
+      squareElement.addEventListener("pointerdown", () => {
         if (!selectedPiece || !selectedSourceSquare) return;
 
         const targetSquare = {
