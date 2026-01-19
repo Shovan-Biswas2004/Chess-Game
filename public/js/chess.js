@@ -3,42 +3,46 @@ const chess = new Chess();
 const boardElement = document.querySelector(".chessboard");
 const statusElement = document.getElementById("status");
 
+let selectedPiece = null;
+let selectedSourceSquare = null;
+const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+
 let draggedPiece = null;
 let sourceSquare = null;
 let playerRole = null;
 
 const updateCapturedPieces = () => {
-    const board = chess.board();
-    const currentPieces = { w: [], b: [] };
+  const board = chess.board();
+  const currentPieces = { w: [], b: [] };
 
-    // 1. Count what is currently on the board
-    board.forEach(row => {
-        row.forEach(square => {
-            if (square) {
-                currentPieces[square.color].push(square.type);
-            }
-        });
+  // 1. Count what is currently on the board
+  board.forEach(row => {
+    row.forEach(square => {
+      if (square) {
+        currentPieces[square.color].push(square.type);
+      }
     });
+  });
 
-    const fullSet = ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p', 'r', 'r', 'n', 'n', 'b', 'b', 'q', 'k'];
+  const fullSet = ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p', 'r', 'r', 'n', 'n', 'b', 'b', 'q', 'k'];
 
-    const calculateMissing = (full, current) => {
-        const missing = [...full];
-        current.forEach(piece => {
-            const index = missing.indexOf(piece);
-            if (index > -1) missing.splice(index, 1);
-        });
-        return missing;
-    };
+  const calculateMissing = (full, current) => {
+    const missing = [...full];
+    current.forEach(piece => {
+      const index = missing.indexOf(piece);
+      if (index > -1) missing.splice(index, 1);
+    });
+    return missing;
+  };
 
-    // LOGIC SWAP HERE:
-    // White's sidebar should show missing BLACK pieces
-    // Black's sidebar should show missing WHITE pieces
-    const whiteHasTaken = calculateMissing(fullSet, currentPieces.b);
-    const blackHasTaken = calculateMissing(fullSet, currentPieces.w);
+  // LOGIC SWAP HERE:
+  // White's sidebar should show missing BLACK pieces
+  // Black's sidebar should show missing WHITE pieces
+  const whiteHasTaken = calculateMissing(fullSet, currentPieces.b);
+  const blackHasTaken = calculateMissing(fullSet, currentPieces.w);
 
-    renderCaptureUI("white-captures", whiteHasTaken, 'b'); // Show black pieces here
-    renderCaptureUI("black-captures", blackHasTaken, 'w'); // Show white pieces here
+  renderCaptureUI("white-captures", whiteHasTaken, 'b'); // Show black pieces here
+  renderCaptureUI("black-captures", blackHasTaken, 'w'); // Show white pieces here
 };
 
 const renderBoard = () => {
@@ -58,7 +62,7 @@ const renderBoard = () => {
         pieceElement.classList.add("piece");
         pieceElement.src = getPieceImage(square);
         pieceElement.alt = `${square.color}-${square.type}`;
-        pieceElement.draggable = playerRole === square.color;
+        pieceElement.draggable = !isTouchDevice && playerRole === square.color;
         pieceElement.addEventListener("dragstart", (e) => {
           if (pieceElement.draggable) {
             draggedPiece = pieceElement;
@@ -70,6 +74,19 @@ const renderBoard = () => {
           draggedPiece = null;
           sourceSquare = null;
         });
+        pieceElement.addEventListener("click", () => {
+          if (playerRole !== square.color) return;
+
+          // Deselect old piece
+          if (selectedPiece) {
+            selectedPiece.classList.remove("selected");
+          }
+
+          selectedPiece = pieceElement;
+          selectedSourceSquare = { row: rowindex, col: squareindex };
+          pieceElement.classList.add("selected");
+        });
+
         squareElement.appendChild(pieceElement);
       }
       squareElement.addEventListener("dragover", (e) => {
@@ -84,7 +101,22 @@ const renderBoard = () => {
           }
           handelMove(sourceSquare, targetSource);
         }
-      })
+      });
+      squareElement.addEventListener("click", () => {
+        if (!selectedPiece || !selectedSourceSquare) return;
+
+        const targetSquare = {
+          row: parseInt(squareElement.dataset.row),
+          col: parseInt(squareElement.dataset.col)
+        };
+
+        handelMove(selectedSourceSquare, targetSquare);
+
+        selectedPiece.classList.remove("selected");
+        selectedPiece = null;
+        selectedSourceSquare = null;
+      });
+
       boardElement.appendChild(squareElement);
     })
   });
@@ -122,19 +154,19 @@ const getPieceImage = (piece) => {
 
 
 const renderCaptureUI = (elementId, pieces, color) => {
-    const container = document.getElementById(elementId);
-    container.innerHTML = "";
-    pieces.forEach(type => {
-        const img = document.createElement("img");
-        img.src = getPieceImage({ color, type });
-        img.classList.add("w-8", "h-8", "opacity-60", "grayscale-[0.5]");
-        container.appendChild(img);
-    });
+  const container = document.getElementById(elementId);
+  container.innerHTML = "";
+  pieces.forEach(type => {
+    const img = document.createElement("img");
+    img.src = getPieceImage({ color, type });
+    img.classList.add("w-8", "h-8", "opacity-60", "grayscale-[0.5]");
+    container.appendChild(img);
+  });
 };
 
 socket.on("playerDisconnected", () => {
-    alert("A player disconnected. Resetting game...");
-    window.location.reload(); // This reloads the page automatically
+  alert("A player disconnected. Resetting game...");
+  window.location.reload(); // This reloads the page automatically
 });
 
 socket.on("playerRole", function (role) {
